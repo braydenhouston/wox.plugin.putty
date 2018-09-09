@@ -53,16 +53,13 @@
         public List<Result> Query(Query query)
         {
             var results = new List<Result> { };
-            if (_settings.AddPuttyExeToResults)
-            {
-                results.Add(CreateResult());
-            }
             var querySearch = query.ActionParameters.FirstOrDefault();
 
             if (string.IsNullOrEmpty(querySearch))
             {
                 if (_settings.AddPuttyExeToResults)
                 {
+                    results.Add(CreateResult("putty.exe", "Launch Clean Putty...", true));
                     return results;
                 }
                 else
@@ -72,10 +69,19 @@
             }
 
             var puttySessions = PuttySessionService.GetAll().Where(session => session.Identifier.ToLowerInvariant().Contains(querySearch.ToLowerInvariant()));
-            foreach (var puttySession in puttySessions)
+            if ( puttySessions.Count() > 0 )
             {
-                results.Add(CreateResult(puttySession.Identifier, puttySession.ToString()));
+                foreach (var puttySession in puttySessions)
+                {
+                    results.Add(CreateResult(puttySession.Identifier, puttySession.ToString(), true));
+                }
+
             }
+            else
+            {
+                results.Add(CreateResult(querySearch, querySearch, false));
+            }
+            
 
             return results;
         }
@@ -86,14 +92,14 @@
         /// <param name="title"></param>
         /// <param name="subTitle"></param>
         /// <returns>A Result object containing the PuttySession identifier and its connection string</returns>
-        private Result CreateResult(string title = "putty.exe", string subTitle = "Launch Clean Putty")
+        private Result CreateResult(string title = "putty.exe", string subTitle = "Launch Clean Putty...", bool session = false)
         {
             return new Result
             {
                 Title = title,
                 SubTitle = subTitle,
                 IcoPath = "icon.png",
-                Action = context => LaunchPuttySession(title),
+                Action = context => LaunchPuttySession(title, session),
             };
         }
 
@@ -102,7 +108,7 @@
         /// </summary>
         /// <param name="sessionIdentifier">The session identifier</param>
         /// <returns>If launching Putty succeeded</returns>
-        private bool LaunchPuttySession(string sessionIdentifier)
+        private bool LaunchPuttySession(string sessionIdentifier, bool session)
         {
             try
             {
@@ -111,7 +117,15 @@
                 // Optionally pass the session identifier
                 if (!string.IsNullOrEmpty(sessionIdentifier))
                 {
-                    p.StartInfo.Arguments = "-load \"" + sessionIdentifier + "\"";
+                    if (session)
+                    {
+                        p.StartInfo.Arguments = "-load \"" + sessionIdentifier + "\"";
+
+                    }
+                    else
+                    {
+                        p.StartInfo.Arguments = " \"" + sessionIdentifier + "\"";
+                    }
                 }
 
                 if (_settings.AlwaysStartsSessionMaximized)
